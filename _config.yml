@@ -1,2 +1,4 @@
-theme: jekyll-theme-minimal
+remote_theme: pages-themes/midnight@v0.2.0
 title: Návod na zálohu dat na flash disk v Debianu
+plugins:
+- jekyll-remote-theme
