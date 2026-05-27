@@ -231,11 +231,17 @@ minuty hodiny den_v_mesici mesic den_v_tydnu prikaz
 
 **Příklady**
 - Každou minutu:
+  ```
   * * * * * /cesta/k/úloze.sh
+  ```
 - Každou noc v 01:00:
+  ```
   0 1 * * * /cesta/k/night_job.sh
+  ```
 - Každou neděli v 04:30:
+  ```
   30 4 * * 0 /cesta/k/weekly.sh
+  ```
 
 
 
