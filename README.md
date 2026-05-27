@@ -230,10 +230,6 @@ minuty hodiny den_v_mesici mesic den_v_tydnu prikaz
   - den_v_tydnu: 0–7 (0 a 7 = neděle nebo zkratky Sun–Sat)
 
 **Příklady**
-- Každou minutu:
-  ```
-  * * * * * /cesta/k/úloze.sh
-  ```
 - Každou noc v 01:00:
   ```
   0 1 * * * /cesta/k/night_job.sh
