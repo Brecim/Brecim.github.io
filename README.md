@@ -1,220 +1,155 @@
-### Vytvoření skriptu
+Tento návod vás provede vytvořením robustního zálohovacího skriptu v Bashi, který využívá nástroj `rsync` pro efektivní kopírování, podporuje verzování (rotaci) záloh a ošetřuje nedokončené přenosy.
 
-Nejprve vytvoříme soubor který bude jako skript pro zálohování:
+---
 
-```
+### 1. Vytvoření a otevření souboru
+Nejprve v terminálu vytvoříme nový soubor pro náš skript a otevřeme jej v textovém editoru (např. `nano`):
+
+```bash
 touch zaloha_skript.sh
-```
-
-Dále otevřeme vytvořený soubor v textovém editoru:
-
-```
 nano zaloha_skript.sh
 ```
 
-Následně definujeme výchozí shell skriptu:
+### 2. Definice proměnných a konfigurace
+Do souboru vložíme úvodní řádku (shebang) a definujeme parametry zálohování.
 
-```
-#!/usr/bin/env bash
-```
-
-Vytvoření proměnné s cestou na zdrojovou složku:
-
-```
+```bash
 #!/usr/bin/env bash
 
-SOURCES="/home/user/test"
-```
+# --- KONFIGURACE ---
+# Cesty ke složkám, které chceme zálohovat (vložené do pole)
+SOURCES=("/home/user/test")
 
-Vytvoření proměnné s cestou na cílovou složku, např.:
-
-```
-...
-
-SOURCES="/home/user/test"
+# Cesta, kam se zálohy budou ukládat
 DEST="/home/user/zaloha"
-```
 
-Volitelně můžeme přidat prefix, který se aplikuje při vytváření názvu zálohy:
-
-```
-...
-
-SOURCES="/home/user/test"
-DEST="/home/user/zaloha"
-PREFIX="$(hostname)-backup  # Volitelné
-```
-
-Nastavení rotace (kolik záloh):
-
-```
-...
-
-SOURCES="/home/user/test"
-DEST="/home/user/zaloha"
+# Prefix názvu zálohy a počet zachovaných verzí
+PREFIX="$(hostname)-backup"
 KEEP=7
-```
 
-Nastavení proměnné RSYNC pro zkopírování souborů včetně oprávnění a speciálních atributů:
-
-```
-...
-
-SOURCES="/home/user/test"
-DEST="/home/user/zaloha"
-KEEP=7
+# Parametry pro RSYNC
+# -a: archivní (zachová oprávnění, časy, rekurze)
+# -H: zachová hardlinky
+# -A: zachová ACL (přístupová práva)
+# -X: zachová rozšířené atributy
+# --delete: smaže v cíli soubory, které už nejsou ve zdroji
 RSYNC_OPTS="-aHAX --delete --info=progress2"
 ```
 
--a = "archivní režim" — zkopíruje složky rekurzivně a zachová většinu nastavení souborů (jako datum, oprávnění)
+### 3. Kontrola prostředí a příprava názvů
+Skript musí ověřit, zda cílová složka existuje, a připravit si časové razítko pro unikátní název každé zálohy.
 
--H = zachová hardlinky (soubor, který má víc názvů)
-
--A = zachová ACL (pokud má soubor podrobnější oprávnění)
-
--X = zachová rozšířené atributy (doplnkové metadata)
-
---delete = v cíli smaže soubory, které už ve zdroji nejsou (udrží cíl stejný jako zdroj)
-
---info=progress2 = ukáže přehledný průběh přenosu (jak to postupuje celkově)
-
-Kontrola existence cílové složky:
-
-```
-...   # Proměnné nad kódem
-
+```bash
+# Kontrola existence cílové složky
 if [ ! -d "$DEST" ]; then
-  echo "Cílová složka $DEST neexistuje." >&2
-  exit 2
-fi
-```
-
-Vytvoření proměnné pro vytvoření koncovky souboru zaznamenávající čas:
-
-```
-...   # Proměnné nad kódem
-
-if [ ! -d "$DEST" ]; then
-  echo "Cílová složka $DEST neexistuje." >&2
+  echo "Chyba: Cílová složka $DEST neexistuje." >&2
   exit 2
 fi
 
+# Vytvoření časového razítka a názvů složek
 TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
-```
-
-Vytvoření proměnné pro název vytvářející se zálohy:
-
-```
-...   # Proměnné nad kódem
-
-if [ ! -d "$DEST" ]; then
-  echo "Cílová složka $DEST neexistuje." >&2
-  exit 2
-fi
-
-TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
+# Dočasná složka pro probíhající zálohu
 TMP_DEST="${DEST}/${PREFIX}-${TIMESTAMP}.inprogress"
-```
-
-Vytvoření proměnné pro název výsledné zálohy:
-
-```
-...   # Proměnné nad kódem
-
-if [ ! -d "$DEST" ]; then
-  echo "Cílová složka $DEST neexistuje." >&2
-  exit 2
-fi
-
-TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
-TMP_DEST="${DEST}/${PREFIX}-${TIMESTAMP}.inprogress"
+# Konečný název po úspěšném dokončení
 FINAL_DEST="${DEST}/${PREFIX}-${TIMESTAMP}"
 ```
 
-Vytvoření složky pro dočasné uložení zálohy:
+### 4. Samotné zálohování (Smyčka a Rsync)
+V této části vytvoříme dočasnou složku a postupně do ní pomocí rsync zkopírujeme všechny definované zdroje.
 
-```
-...
-
-TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
-TMP_DEST="${DEST}/${PREFIX}-${TIMESTAMP}.inprogress"
-FINAL_DEST="${DEST}/${PREFIX}-${TIMESTAMP}"
-
-mkdir -p "$TMP_DEST"
-```
-
-Cyklus pro průchod všemi soubory zdrojové složky, které se mají zálohovat:
-
-```
-...
-
+```bash
 mkdir -p "$TMP_DEST"
 
 for src in "${SOURCES[@]}"; do
   if [ ! -e "$src" ]; then
-    echo "Varování: zdroj $src neexistuje — přeskočeno."
+    echo "Varování: Zdroj $src neexistuje – přeskakuji."
     continue
   fi
-  rsync $RSYNC_OPTS "$src" "$TMP_DEST/"
-done
-```
-
-Přejmenování dočasné složky na výslednou:
-
-```
-...
-
-for src in "${SOURCES[@]}"; do
-  if [ ! -e "$src" ]; then
-    echo "Varování: zdroj $src neexistuje — přeskočeno."
-    continue
-  fi
+  
+  # Spuštění kopírování
   rsync $RSYNC_OPTS "$src" "$TMP_DEST/"
 done
 
+# Po úspěšném dokončení přejmenujeme dočasnou složku na finální
 mv "$TMP_DEST" "$FINAL_DEST"
 ```
 
-Ošetření ponechání posledních x záloh (definované pomocí proměnné KEEP):
+### 5. Rotace záloh (Mazání starých verzí)
+Aby disk nepřetekl, ponecháme pouze nastavený počet nejnovějších záloh (proměnná `KEEP`).
 
-```
-...
-
-mv "$TMP_DEST" "$FINAL_DEST"
-
+```bash
 cd "$DEST"
+# Seřadí složky podle času (nejnovější nahoře) a vybere ty k smazání
 ls -1dt ${PREFIX}-* 2>/dev/null | sed -n "$((KEEP+1)),\$p" | while read -r old; do
-  [ -z "$old" ] && break
-  rm -rf -- "$old"
-done
-```
-
-Oznámení o dokončení zálohy:
-
-```
-...
-
-cd "$DEST"
-ls -1dt ${PREFIX}-* 2>/dev/null | sed -n "$((KEEP+1)),\$p" | while read -r old; do
-  [ -z "$old" ] && break
-  rm -rf -- "$old"
+  if [ -n "$old" ]; then
+    echo "Mažu starou zálohu: $old"
+    rm -rf -- "$old"
+  fi
 done
 
 echo "Záloha dokončena: $FINAL_DEST"
-```
-
-Ukončení skriptu:
-
-```
-...
-
-echo "Záloha dokončena: $FINAL_DEST"
-
 exit 0
 ```
 
-Nakonec skript uložíme do souboru pomocí klávesové zkratky _Ctrl+S_ a z textového editoru odejdeme pomocí _Ctrl+X_.
+---
 
+### Jak skript uložit a spustit
+
+1.  **Uložení:** V editoru `nano` stiskněte `Ctrl+S` (uložit) a poté `Ctrl+X` (odejít).
+2.  **Práva ke spuštění:** Aby bylo možné soubor spustit jako program, musíte mu přidat oprávnění:
+    ```bash
+    chmod +x zaloha_skript.sh
+    ```
+3.  **Spuštění:** Skript nyní můžete spustit příkazem:
+    ```bash
+    ./zaloha_skript.sh
+    ```
+
+### Celý skript pro zkopírování:
+
+```bash
+#!/usr/bin/env bash
+
+# --- KONFIGURACE ---
+SOURCES=("/home/user/test")
+DEST="/home/user/zaloha"
+PREFIX="$(hostname)-backup"
+KEEP=7
+RSYNC_OPTS="-aHAX --delete --info=progress2"
+
+# --- KONTROLA A PŘÍPRAVA ---
+if [ ! -d "$DEST" ]; then
+  echo "Chyba: Cílová složka $DEST neexistuje." >&2
+  exit 2
+fi
+
+TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
+TMP_DEST="${DEST}/${PREFIX}-${TIMESTAMP}.inprogress"
+FINAL_DEST="${DEST}/${PREFIX}-${TIMESTAMP}"
+
+# --- PROCES ZÁLOHOVÁNÍ ---
+mkdir -p "$TMP_DEST"
+
+for src in "${SOURCES[@]}"; do
+  if [ ! -e "$src" ]; then
+    echo "Varování: Zdroj $src neexistuje – přeskakuji."
+    continue
+  fi
+  rsync $RSYNC_OPTS "$src" "$TMP_DEST/"
+done
+
+mv "$TMP_DEST" "$FINAL_DEST"
+
+# --- ROTACE ZÁLOH ---
+cd "$DEST"
+ls -1dt ${PREFIX}-* 2>/dev/null | sed -n "$((KEEP+1)),\$p" | while read -r old; do
+  [ -z "$old" ] && break
+  rm -rf -- "$old"
+done
+
+echo "Záloha dokončena: $FINAL_DEST"
+exit 0
+```
 
 ### Nastavení cron-u pomocí crontabu
 
@@ -242,8 +177,6 @@ minuty hodiny den_v_mesici mesic den_v_tydnu prikaz
   ```
   30 4 * * 0 /cesta/k/weekly.sh
   ```
-
-
 
 Abychom mohli nastavit pravidelné spuštění příkazu, musíme otevřít _crontab_:
 
