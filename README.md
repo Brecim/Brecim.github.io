@@ -30,6 +30,7 @@ Vytvoření proměnné s cestou na cílovou složku, např.:
 
 ```
 ...
+
 SOURCES="/home/user/test"
 DEST="/home/user/zaloha"
 ```
@@ -38,6 +39,7 @@ Volitelně můžeme přidat prefix, který se aplikuje při vytváření názvu 
 
 ```
 ...
+
 SOURCES="/home/user/test"
 DEST="/home/user/zaloha"
 PREFIX="$(hostname)-backup  # Volitelné
@@ -47,6 +49,7 @@ Nastavení rotace (kolik záloh):
 
 ```
 ...
+
 SOURCES="/home/user/test"
 DEST="/home/user/zaloha"
 KEEP=7
@@ -56,6 +59,7 @@ Nastavení proměnné RSYNC pro zkopírování souborů včetně oprávnění a 
 
 ```
 ...
+
 SOURCES="/home/user/test"
 DEST="/home/user/zaloha"
 KEEP=7
