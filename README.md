@@ -1,5 +1,3 @@
-## Postup řešení
-
 ### Vytvoření skriptu
 
 Nejprve vytvoříme soubor který bude jako skript pro zálohování:
@@ -23,30 +21,44 @@ Následně definujeme výchozí shell skriptu:
 Vytvoření proměnné s cestou na zdrojovou složku:
 
 ```
+#!/usr/bin/env bash
+
 SOURCES="/home/user/test"
 ```
 
 Vytvoření proměnné s cestou na cílovou složku, např.:
 
 ```
+...
+SOURCES="/home/user/test"
 DEST="/home/user/zaloha"
 ```
 
 Volitelně můžeme přidat prefix, který se aplikuje při vytváření názvu zálohy:
 
 ```
-PREFIX="$(hostname)-backup
+...
+SOURCES="/home/user/test"
+DEST="/home/user/zaloha"
+PREFIX="$(hostname)-backup  # Volitelné
 ```
 
 Nastavení rotace (kolik záloh):
 
 ```
+...
+SOURCES="/home/user/test"
+DEST="/home/user/zaloha"
 KEEP=7
 ```
 
 Nastavení proměnné RSYNC pro zkopírování souborů včetně oprávnění a speciálních atributů:
 
 ```
+...
+SOURCES="/home/user/test"
+DEST="/home/user/zaloha"
+KEEP=7
 RSYNC_OPTS="-aHAX --delete --info=progress2"
 ```
 
@@ -65,6 +77,8 @@ RSYNC_OPTS="-aHAX --delete --info=progress2"
 Kontrola existence cílové složky:
 
 ```
+...   # Proměnné nad kódem
+
 if [ ! -d "$DEST" ]; then
   echo "Cílová složka $DEST neexistuje." >&2
   exit 2
@@ -74,30 +88,64 @@ fi
 Vytvoření proměnné pro vytvoření koncovky souboru zaznamenávající čas:
 
 ```
+...   # Proměnné nad kódem
+
+if [ ! -d "$DEST" ]; then
+  echo "Cílová složka $DEST neexistuje." >&2
+  exit 2
+fi
+
 TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
 ```
 
 Vytvoření proměnné pro název vytvářející se zálohy:
 
 ```
+...   # Proměnné nad kódem
+
+if [ ! -d "$DEST" ]; then
+  echo "Cílová složka $DEST neexistuje." >&2
+  exit 2
+fi
+
+TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
 TMP_DEST="${DEST}/${PREFIX}-${TIMESTAMP}.inprogress"
 ```
 
 Vytvoření proměnné pro název výsledné zálohy:
 
 ```
+...   # Proměnné nad kódem
+
+if [ ! -d "$DEST" ]; then
+  echo "Cílová složka $DEST neexistuje." >&2
+  exit 2
+fi
+
+TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
+TMP_DEST="${DEST}/${PREFIX}-${TIMESTAMP}.inprogress"
 FINAL_DEST="${DEST}/${PREFIX}-${TIMESTAMP}"
 ```
 
 Vytvoření složky pro dočasné uložení zálohy:
 
 ```
+...
+
+TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
+TMP_DEST="${DEST}/${PREFIX}-${TIMESTAMP}.inprogress"
+FINAL_DEST="${DEST}/${PREFIX}-${TIMESTAMP}"
+
 mkdir -p "$TMP_DEST"
 ```
 
 Cyklus pro průchod všemi soubory zdrojové složky, které se mají zálohovat:
 
 ```
+...
+
+mkdir -p "$TMP_DEST"
+
 for src in "${SOURCES[@]}"; do
   if [ ! -e "$src" ]; then
     echo "Varování: zdroj $src neexistuje — přeskočeno."
@@ -110,12 +158,26 @@ done
 Přejmenování dočasné složky na výslednou:
 
 ```
+...
+
+for src in "${SOURCES[@]}"; do
+  if [ ! -e "$src" ]; then
+    echo "Varování: zdroj $src neexistuje — přeskočeno."
+    continue
+  fi
+  rsync $RSYNC_OPTS "$src" "$TMP_DEST/"
+done
+
 mv "$TMP_DEST" "$FINAL_DEST"
 ```
 
 Ošetření ponechání posledních x záloh (definované pomocí proměnné KEEP):
 
 ```
+...
+
+mv "$TMP_DEST" "$FINAL_DEST"
+
 cd "$DEST"
 ls -1dt ${PREFIX}-* 2>/dev/null | sed -n "$((KEEP+1)),\$p" | while read -r old; do
   [ -z "$old" ] && break
@@ -126,12 +188,24 @@ done
 Oznámení o dokončení zálohy:
 
 ```
+...
+
+cd "$DEST"
+ls -1dt ${PREFIX}-* 2>/dev/null | sed -n "$((KEEP+1)),\$p" | while read -r old; do
+  [ -z "$old" ] && break
+  rm -rf -- "$old"
+done
+
 echo "Záloha dokončena: $FINAL_DEST"
 ```
 
 Ukončení skriptu:
 
 ```
+...
+
+echo "Záloha dokončena: $FINAL_DEST"
+
 exit 0
 ```
 
