@@ -2,7 +2,33 @@ Tento návod vás provede vytvořením robustního zálohovacího skriptu v Bash
 
 ---
 
-### 1. Vytvoření a otevření souboru
+Aby mohl tento skript správně fungovat, budete potřebovat následující softwarové vybavení. Většina z těchto nástrojů je v Linuxu standardní součástí systému, ale je dobré si ověřit jejich přítomnost.
+
+# Potřebný software:
+
+1.  **Textový editor (nano):**
+    *   Budeme v návodě používat textový editor `nano`, ale samozřejmě lze použít jakýkoliv jiný editor.
+    *   Pokud jej nemáte, nainstalujete jej příkazem:
+        *   *Debian/Ubuntu/Mint:* `sudo apt install nano`
+        *   *Fedora/RHEL/CentOS:* `sudo dnf install nano`
+        *   *Arch Linux:* `sudo pacman -S nano`
+2.  **rsync:**
+    *   **Klíčový nástroj** pro samotné kopírování a synchronizaci souborů.
+    *   Pokud jej nemáte, nainstalujete jej příkazem:
+        *   *Debian/Ubuntu/Mint:* `sudo apt install rsync`
+        *   *Fedora/RHEL/CentOS:* `sudo dnf install rsync`
+        *   *Arch Linux:* `sudo pacman -S rsync`
+
+## Jak ověřit, zda je vše připraveno?
+Stačí do terminálu napsat:
+```bash
+rsync --version
+```
+Pokud se zobrazí verze programu, je vše v pořádku a můžete skript začít používat.
+
+# Návod
+
+## 1. Vytvoření a otevření souboru
 Nejprve v terminálu vytvoříme nový soubor pro náš skript a otevřeme jej v textovém editoru (např. `nano`):
 
 ```bash
@@ -10,7 +36,7 @@ touch zaloha_skript.sh
 nano zaloha_skript.sh
 ```
 
-### 2. Definice proměnných a konfigurace
+## 2. Definice proměnných a konfigurace
 Do souboru vložíme úvodní řádku (shebang) a definujeme parametry zálohování.
 
 ```bash
@@ -36,7 +62,7 @@ KEEP=7
 RSYNC_OPTS="-aHAX --delete --info=progress2"
 ```
 
-### 3. Kontrola prostředí a příprava názvů
+## 3. Kontrola prostředí a příprava názvů
 Skript musí ověřit, zda cílová složka existuje, a připravit si časové razítko pro unikátní název každé zálohy.
 
 ```bash
@@ -54,7 +80,7 @@ TMP_DEST="${DEST}/${PREFIX}-${TIMESTAMP}.inprogress"
 FINAL_DEST="${DEST}/${PREFIX}-${TIMESTAMP}"
 ```
 
-### 4. Samotné zálohování (Smyčka a Rsync)
+## 4. Samotné zálohování (Smyčka a Rsync)
 V této části vytvoříme dočasnou složku a postupně do ní pomocí rsync zkopírujeme všechny definované zdroje.
 
 ```bash
@@ -74,7 +100,7 @@ done
 mv "$TMP_DEST" "$FINAL_DEST"
 ```
 
-### 5. Rotace záloh (Mazání starých verzí)
+## 5. Rotace záloh (Mazání starých verzí)
 Aby disk nepřetekl, ponecháme pouze nastavený počet nejnovějších záloh (proměnná `KEEP`).
 
 ```bash
@@ -93,7 +119,7 @@ exit 0
 
 ---
 
-### Jak skript uložit a spustit
+# Jak skript uložit a spustit
 
 1.  **Uložení:** V editoru `nano` stiskněte `Ctrl+S` (uložit) a poté `Ctrl+X` (odejít).
 2.  **Práva ke spuštění:** Aby bylo možné soubor spustit jako program, musíte mu přidat oprávnění:
@@ -105,7 +131,7 @@ exit 0
     ./zaloha_skript.sh
     ```
 
-### Celý skript pro zkopírování:
+# Celý skript pro zkopírování:
 
 ```bash
 #!/usr/bin/env bash
